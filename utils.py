@@ -1,0 +1,47 @@
+import yt_dlp
+import uuid
+import os
+import asyncio
+
+TEMP_DIR = "temp"
+os.makedirs(TEMP_DIR, exist_ok=True)
+
+async def download_and_convert(url: str):
+    if "youtube.com" not in url and "youtu.be" not in url:
+        raise ValueError("Invalid YouTube URL")
+
+    video_id = str(uuid.uuid4())
+    output_path = os.path.join(TEMP_DIR, f"{video_id}.%(ext)s")
+    final_mp3_path = os.path.join(TEMP_DIR, f"{video_id}.mp3")
+
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': output_path,
+        'ffmpeg_location': "C:/Users/nazza/Downloads/ffmpeg-7.1.1-full_build/ffmpeg-7.1.1-full_build/bin",
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+        'quiet': True,
+        'noplaylist': True,
+        'nocheckcertificate': True,
+    }
+
+    try:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, lambda: yt_dlp.YoutubeDL(ydl_opts).download([url]))
+    except Exception as e:
+        raise RuntimeError(f"Download failed: {e}")
+
+    if not os.path.exists(final_mp3_path):
+        raise RuntimeError("MP3 file not created")
+
+    return final_mp3_path, os.path.basename(final_mp3_path)
+
+def cleanup_file(path):
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except Exception as e:
+        print(f"Failed to clean up {path}: {e}")

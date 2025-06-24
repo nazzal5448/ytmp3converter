@@ -1,0 +1,14 @@
+[project]
+name = "yt-mp3-converter"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "dotenv>=0.9.9",
+    "fastapi>=0.115.13",
+    "ffmpeg>=1.4",
+    "python-multipart>=0.0.20",
+    "uvicorn>=0.34.3",
+    "yt-dlp>=2025.6.9",
+]
