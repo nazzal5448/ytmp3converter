@@ -21,6 +21,7 @@ async def download_and_convert(url: str):
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
             'preferredquality': '192',
+            'cookiefile': 'youtube_cookies.json'
         }],
         'quiet': True,
         'noplaylist': True,
