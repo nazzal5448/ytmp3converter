@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Form, HTTPException, BackgroundTasks
+from fastapi import FastAPI, Form, BackgroundTasks
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from utils import download_and_convert, cleanup_file
@@ -7,14 +7,14 @@ import logging
 
 app = FastAPI()
 
-# Setup logging
+# Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("yt-mp3-api")
 
-# CORS config — update this in prod
+# CORS setup — update origins before going to production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Replace with your domain for security
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -26,17 +26,15 @@ def home():
 
 @app.post("/convert")
 async def convert_youtube_video(
-    url: str = Form(...), 
+    url: str = Form(...),
     background_tasks: BackgroundTasks = None
 ):
     try:
-        logger.info(f"Received request to convert URL: {url}")
-        
+        logger.info(f"Conversion started for: {url}")
         mp3_path, filename = await download_and_convert(url)
-
-        # Schedule cleanup
         background_tasks.add_task(cleanup_file, mp3_path)
 
+        logger.info(f"Conversion successful: {filename}")
         return FileResponse(
             path=mp3_path,
             filename=filename,
@@ -44,14 +42,22 @@ async def convert_youtube_video(
         )
 
     except ValueError as ve:
-        logger.warning(f"Bad request: {ve}")
+        logger.warning(f"Client error: {ve}")
         return JSONResponse(
             status_code=HTTP_400_BAD_REQUEST,
             content={"error": str(ve)}
         )
+
+    except RuntimeError as re:
+        logger.warning(f"Download error: {re}")
+        return JSONResponse(
+            status_code=HTTP_400_BAD_REQUEST,
+            content={"error": str(re)}
+        )
+
     except Exception as e:
-        logger.error(f"Internal error: {e}", exc_info=True)
+        logger.error(f"Server crash: {e}", exc_info=True)
         return JSONResponse(
             status_code=HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"error": "Internal Server Error"}
+            content={"error": "Unexpected server error. Please try again later."}
         )
