@@ -17,7 +17,7 @@ async def download_and_convert(url: str):
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': output_path,
-        'ffmpeg_location': "C:/Users/nazza/Downloads/ffmpeg-7.1.1-full_build/ffmpeg-7.1.1-full_build/bin",
+        'ffmpeg_location': '/usr/local/bin/ffmpeg',
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
@@ -26,6 +26,7 @@ async def download_and_convert(url: str):
         'quiet': True,
         'noplaylist': True,
         'nocheckcertificate': True,
+        'socket_timeout': 30
     }
 
     try:
