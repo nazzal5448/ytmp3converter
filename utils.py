@@ -17,11 +17,12 @@ async def download_and_convert(url: str):
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': output_path,
+        'cookiefile': 'youtube_cookies.json',
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
             'preferredquality': '192',
-            'cookiefile': 'youtube_cookies.json'
+            
         }],
         'quiet': True,
         'noplaylist': True,
