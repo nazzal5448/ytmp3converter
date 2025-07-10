@@ -27,7 +27,8 @@ async def download_and_convert(url: str):
         'quiet': True,
         'noplaylist': True,
         'nocheckcertificate': True,
-        'socket_timeout': 30
+        'socket_timeout': 30,
+        'cookiefile': '/var/www/html/ytmp3converter/cookies.txt',
     }
 
     try:
