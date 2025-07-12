@@ -17,6 +17,7 @@ async def download_and_convert(url: str):
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': output_path,
+        'cachedir': False,
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
