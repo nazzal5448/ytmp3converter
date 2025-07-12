@@ -14,7 +14,7 @@ logger = logging.getLogger("yt-mp3-api")
 # CORS setup — update origins before going to production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["youtubemp3converter.net"],
+    allow_origins=["https://youtubemp3converter.net"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
