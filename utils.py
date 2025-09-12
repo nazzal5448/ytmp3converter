@@ -8,6 +8,7 @@ de.load_dotenv(dotenv_path="/opt/ytmp3converter/.env")
 
 # Read cookies path
 PATH = os.environ.get("COOKIES_PATH")
+print(f"Getting cookies from: {PATH}")
 if not PATH or not os.path.exists(PATH):
     raise RuntimeError(f"Cookies file not found at {PATH}")
 
@@ -32,7 +33,7 @@ async def download_and_convert(url: str):
             'preferredquality': '192',
             
         }],
-        'quiet': True,
+        'quiet': False,
         'noplaylist': True,
         'nocheckcertificate': True,
         'socket_timeout': 30,
