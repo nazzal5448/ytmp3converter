@@ -3,10 +3,13 @@ import uuid
 import os
 import asyncio
 import dotenv as de
+# Explicitly specify the path to .env
+de.load_dotenv(dotenv_path="/opt/ytmp3converter/.env")
 
-de.load_dotenv()
-
-PATH = os.environ["COOKIES_PATH"]
+# Read cookies path
+PATH = os.environ.get("COOKIES_PATH")
+if not PATH or not os.path.exists(PATH):
+    raise RuntimeError(f"Cookies file not found at {PATH}")
 
 TEMP_DIR = "temp"
 os.makedirs(TEMP_DIR, exist_ok=True)
