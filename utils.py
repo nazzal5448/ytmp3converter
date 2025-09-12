@@ -2,6 +2,11 @@ import yt_dlp
 import uuid
 import os
 import asyncio
+import dotenv as de
+
+de.load_dotenv()
+
+PATH = os.environ["COOKIES_PATH"]
 
 TEMP_DIR = "temp"
 os.makedirs(TEMP_DIR, exist_ok=True)
@@ -28,7 +33,7 @@ async def download_and_convert(url: str):
         'noplaylist': True,
         'nocheckcertificate': True,
         'socket_timeout': 30,
-        'cookiefile': '/var/www/html/ytmp3converter/cookies.txt',
+        'cookiefile': PATH,
     }
 
     try:
