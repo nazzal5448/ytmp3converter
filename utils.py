@@ -7,11 +7,12 @@ import dotenv as de
 de.load_dotenv(dotenv_path="/opt/ytmp3converter/.env")
 
 # de.load_dotenv()
+
+# Read cookies path
+PATH = os.environ.get("COOKIES_PATH")
 print(f"Getting cookies from: {PATH}")
 print(f"File exists? {os.path.exists(PATH)}")
 print(f"Readable? {os.access(PATH, os.R_OK)}")
-# Read cookies path
-PATH = os.environ.get("COOKIES_PATH")
 print(f"Getting cookies from: {PATH}")
 if not PATH or not os.path.exists(PATH):
     raise RuntimeError(f"Cookies file not found at {PATH}")
