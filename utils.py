@@ -6,6 +6,8 @@ import dotenv as de
 # Explicitly specify the path to .env
 de.load_dotenv(dotenv_path="/opt/ytmp3converter/.env")
 
+# de.load_dotenv()
+
 # Read cookies path
 PATH = os.environ.get("COOKIES_PATH")
 print(f"Getting cookies from: {PATH}")
@@ -24,21 +26,28 @@ async def download_and_convert(url: str):
     final_mp3_path = os.path.join(TEMP_DIR, f"{video_id}.mp3")
 
     ydl_opts = {
-        'format': 'bestaudio/best',
-        'outtmpl': output_path,
-        'cachedir': False,
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-            
-        }],
-        'quiet': False,
-        'noplaylist': True,
-        'nocheckcertificate': True,
-        'socket_timeout': 30,
-        'cookiefile': PATH,
+    "format": "bestaudio",   # match CLI -f bestaudio
+    "outtmpl": output_path,
+    "cookiefile": PATH,
+    "noplaylist": True,
+    "nocheckcertificate": True,
+    "socket_timeout": 30,
+    "cachedir": False,
+    "quiet": False,
+
+    # Equivalent of --extract-audio --audio-format mp3
+    "postprocessors": [
+        {
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "mp3",
+            "preferredquality": "192",
+        }
+    ],
+
+    # Add this: force yt-dlp to prefer ffmpeg directly if HLS/SABR is forced
+    "prefer_ffmpeg": True,
     }
+
 
     try:
         loop = asyncio.get_event_loop()
