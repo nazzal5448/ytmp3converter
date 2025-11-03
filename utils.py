@@ -34,7 +34,7 @@ async def download_and_convert(url: str):
     # --- yt-dlp config ---
     ydl_opts = {
         # --- Format selection ---
-        "format": "bestaudio[ext=m4a]/bestaudio/best",
+        "format": "bestaudio/best",
         "merge_output_format": "mp3",
         # prefers m4a > fallback to any audio
         "outtmpl": output_path,
