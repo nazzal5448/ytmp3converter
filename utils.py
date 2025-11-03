@@ -32,7 +32,7 @@ async def download_and_convert(url: str):
     final_mp3_path = os.path.join(TEMP_DIR, f"{video_id}.mp3")
 
     # --- yt-dlp config ---
-        ydl_opts = {
+    ydl_opts = {
         # --- Format selection ---
         "format": "bestaudio[ext=m4a]/bestaudio/best",  # prefers m4a > fallback to any audio
         "outtmpl": output_path,
