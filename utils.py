@@ -3,17 +3,20 @@ import uuid
 import os
 import asyncio
 import dotenv as de
+import logging
+
 # Explicitly specify the path to .env
 de.load_dotenv(dotenv_path="/opt/ytmp3converter/.env")
 
-# de.load_dotenv()
+# Logger setup
+logger = logging.getLogger("ytmp3-utils")
 
 # Read cookies path
 PATH = os.environ.get("COOKIES_PATH")
 print(f"Getting cookies from: {PATH}")
 print(f"File exists? {os.path.exists(PATH)}")
 print(f"Readable? {os.access(PATH, os.R_OK)}")
-print(f"Getting cookies from: {PATH}")
+
 if not PATH or not os.path.exists(PATH):
     raise RuntimeError(f"Cookies file not found at {PATH}")
 
@@ -28,65 +31,74 @@ async def download_and_convert(url: str):
     output_path = os.path.join(TEMP_DIR, f"{video_id}.%(ext)s")
     final_mp3_path = os.path.join(TEMP_DIR, f"{video_id}.mp3")
 
+    # --- yt-dlp config ---
     ydl_opts = {
-        "format": "bestaudio/best",
+        "format": "bestaudio/best",           # Highest quality audio
         "outtmpl": output_path,
         "cookiefile": PATH,
         "noplaylist": True,
+        "quiet": True,                        # Silent unless error
+        "no_warnings": True,
+        "prefer_ffmpeg": True,
+        "merge_output_format": "mp3",
         "nocheckcertificate": True,
         "socket_timeout": 30,
         "cachedir": False,
-        "quiet": True,
-        "prefer_ffmpeg": True,
-        "merge_output_format": "mp3",
+        "retries": 3,
 
-        # Post-processing: extract audio and convert to mp3
+        # Force yt-dlp to use stable web clients (same as CLI success)
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["web"],
+            }
+        },
+
+        # Postprocessing: convert to MP3
         "postprocessors": [
             {
                 "key": "FFmpegExtractAudio",
                 "preferredcodec": "mp3",
                 "preferredquality": "192",
-            }
+            },
+            {
+                "key": "EmbedMetadata",  # Optional: preserves title/artist
+            },
         ],
-
-        # Handle SABR/HLS or missing direct URLs
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["android", "web", "tv"],  # fallback clients
-                "skip": ["dash", "hls"]  # skip unstable stream types
-            }
-        },
-
-        # Retry on temporary failures
-        "retries": 3,
     }
 
     try:
+        logger.info(f"Starting download for: {url}")
+
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, lambda: yt_dlp.YoutubeDL(ydl_opts).download([url]))
 
+        # Verify output
         if not os.path.exists(final_mp3_path):
-            # Sometimes yt-dlp outputs .m4a instead; rename it
+            # Handle common case: yt-dlp outputs .m4a first
             alt_path = os.path.join(TEMP_DIR, f"{video_id}.m4a")
             if os.path.exists(alt_path):
                 os.rename(alt_path, final_mp3_path)
+                logger.info("Renamed .m4a to .mp3 after conversion.")
             else:
                 raise RuntimeError("Conversion failed: MP3 file was not created.")
 
+        logger.info(f"Successfully converted: {final_mp3_path}")
         return final_mp3_path, os.path.basename(final_mp3_path)
 
     except yt_dlp.utils.DownloadError as de:
+        logger.warning(f"Download error: {de}")
         raise RuntimeError(
             "The video is unavailable, private, age-restricted, or region-locked."
         ) from de
 
     except Exception as e:
+        logger.error(f"Unexpected error: {e}", exc_info=True)
         raise RuntimeError(f"Unexpected error: {e}")
-
 
 def cleanup_file(path):
     try:
         if os.path.exists(path):
             os.remove(path)
+            logger.info(f"Cleaned up temp file: {path}")
     except Exception as e:
-        print(f"Cleanup failed for {path}: {e}")
+        logger.error(f"Cleanup failed for {path}: {e}")
