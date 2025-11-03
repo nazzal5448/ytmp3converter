@@ -32,28 +32,28 @@ async def download_and_convert(url: str):
     final_mp3_path = os.path.join(TEMP_DIR, f"{video_id}.mp3")
 
     # --- yt-dlp config ---
-    ydl_opts = {
-        "format": "bestaudio/best",           # Highest quality audio
+        ydl_opts = {
+        # --- Format selection ---
+        "format": "bestaudio[ext=m4a]/bestaudio/best",  # prefers m4a > fallback to any audio
         "outtmpl": output_path,
         "cookiefile": PATH,
         "noplaylist": True,
-        "quiet": True,                        # Silent unless error
+        "quiet": True,
         "no_warnings": True,
         "prefer_ffmpeg": True,
-        "merge_output_format": "mp3",
         "nocheckcertificate": True,
         "socket_timeout": 30,
         "cachedir": False,
         "retries": 3,
 
-        # Force yt-dlp to use stable web clients (same as CLI success)
+        # --- Extraction stability ---
         "extractor_args": {
             "youtube": {
-                "player_client": ["web"],
+                "player_client": ["web", "android", "tv"],  # fallback across multiple clients
             }
         },
 
-        # Postprocessing: convert to MP3
+        # --- Post-processing chain ---
         "postprocessors": [
             {
                 "key": "FFmpegExtractAudio",
@@ -63,6 +63,7 @@ async def download_and_convert(url: str):
             
         ],
     }
+
 
     try:
         logger.info(f"Starting download for: {url}")
