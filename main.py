@@ -1,25 +1,26 @@
-from fastapi import FastAPI, Form
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-import requests
-import logging
 import os
+import logging
+import aiohttp
+from fastapi import FastAPI, Form
+from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.status import HTTP_400_BAD_REQUEST, HTTP_500_INTERNAL_SERVER_ERROR
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
-RAPIDAPI_HOST = os.getenv("RAPIDAPI_HOST")
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
+RAPIDAPI_HOST = os.getenv("RAPIDAPI_HOST")
 
-# Initialize FastAPI
+# Initialize FastAPI app
 app = FastAPI()
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("yt-mp3-api")
 
-# CORS setup
+# CORS setup (change domain before going to production)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://youtubemp3converter.net"],
@@ -30,42 +31,59 @@ app.add_middleware(
 
 @app.get("/")
 def home():
-    return {"message": "YouTube MP3 Converter API (RapidAPI Version) is running."}
+    return {"message": "YouTube MP3 Converter API is running."}
+
 
 @app.post("/convert")
 async def convert_youtube_video(url: str = Form(...)):
-    """Convert YouTube video to MP3 using RapidAPI."""
-    logger.info(f"Conversion started for: {url}")
-
+    """
+    Converts YouTube video to MP3 via RapidAPI
+    """
     try:
-        endpoint = "https://yt-search-and-download-mp3.p.rapidapi.com/mp3"
-        headers = {
-            "x-rapidapi-host": RAPIDAPI_HOST,
-            "x-rapidapi-key": RAPIDAPI_KEY,
-        }
+        logger.info(f"Conversion started for: {url}")
+
+        api_url = "https://yt-search-and-download-mp3.p.rapidapi.com/mp3"
         params = {"url": url}
-
-        response = requests.get(endpoint, headers=headers, params=params)
-        if response.status_code != 200:
-            logger.warning(f"RapidAPI error {response.status_code}: {response.text}")
-            return JSONResponse(
-                status_code=response.status_code,
-                content={"error": "Failed to fetch MP3. Please try again."},
-            )
-
-        data = response.json()
-        logger.info(f"Conversion successful for: {data.get('title', 'Unknown')}")
-
-        return {
-            "success": True,
-            "title": data.get("title"),
-            "download_url": data.get("link"),
-            "duration": data.get("duration"),
+        headers = {
+            "x-rapidapi-key": RAPIDAPI_KEY,
+            "x-rapidapi-host": RAPIDAPI_HOST,
         }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(api_url, headers=headers, params=params) as response:
+                data = await response.json()
+
+        if not data.get("success"):
+            raise RuntimeError(f"API returned an error: {data}")
+
+        download_url = data.get("download")
+        title = data.get("title", "output")
+
+        if not download_url:
+            raise ValueError("Download URL missing in API response")
+
+        logger.info(f"Conversion successful for '{title}'")
+
+        # Redirect user to the RapidAPI download link
+        return RedirectResponse(url=download_url)
+
+    except ValueError as ve:
+        logger.warning(f"Client error: {ve}")
+        return JSONResponse(
+            status_code=HTTP_400_BAD_REQUEST,
+            content={"error": str(ve)}
+        )
+
+    except RuntimeError as re:
+        logger.warning(f"Download error: {re}")
+        return JSONResponse(
+            status_code=HTTP_400_BAD_REQUEST,
+            content={"error": str(re)}
+        )
 
     except Exception as e:
         logger.error(f"Server crash: {e}", exc_info=True)
         return JSONResponse(
-            status_code=500,
-            content={"error": "Unexpected server error. Please try again later."},
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"error": "Unexpected server error. Please try again later."}
         )
