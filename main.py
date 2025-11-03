@@ -1,17 +1,25 @@
-from fastapi import FastAPI, Form, BackgroundTasks
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, Form
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from utils import download_and_convert, cleanup_file
-from starlette.status import HTTP_400_BAD_REQUEST, HTTP_500_INTERNAL_SERVER_ERROR
+import requests
 import logging
+import os
+from dotenv import load_dotenv
 
+# Load environment variables
+load_dotenv()
+
+RAPIDAPI_HOST = os.getenv("RAPIDAPI_HOST")
+RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
+
+# Initialize FastAPI
 app = FastAPI()
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("yt-mp3-api")
 
-# CORS setup — update origins before going to production
+# CORS setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://youtubemp3converter.net"],
@@ -22,42 +30,42 @@ app.add_middleware(
 
 @app.get("/")
 def home():
-    return {"message": "YouTube MP3 Converter API is running."}
+    return {"message": "YouTube MP3 Converter API (RapidAPI Version) is running."}
 
 @app.post("/convert")
-async def convert_youtube_video(
-    url: str = Form(...),
-    background_tasks: BackgroundTasks = None
-):
+async def convert_youtube_video(url: str = Form(...)):
+    """Convert YouTube video to MP3 using RapidAPI."""
+    logger.info(f"Conversion started for: {url}")
+
     try:
-        logger.info(f"Conversion started for: {url}")
-        mp3_path, filename = await download_and_convert(url)
-        background_tasks.add_task(cleanup_file, mp3_path)
+        endpoint = "https://yt-search-and-download-mp3.p.rapidapi.com/mp3"
+        headers = {
+            "x-rapidapi-host": RAPIDAPI_HOST,
+            "x-rapidapi-key": RAPIDAPI_KEY,
+        }
+        params = {"url": url}
 
-        logger.info(f"Conversion successful: {filename}")
-        return FileResponse(
-            path=mp3_path,
-            filename=filename,
-            media_type="audio/mpeg"
-        )
+        response = requests.get(endpoint, headers=headers, params=params)
+        if response.status_code != 200:
+            logger.warning(f"RapidAPI error {response.status_code}: {response.text}")
+            return JSONResponse(
+                status_code=response.status_code,
+                content={"error": "Failed to fetch MP3. Please try again."},
+            )
 
-    except ValueError as ve:
-        logger.warning(f"Client error: {ve}")
-        return JSONResponse(
-            status_code=HTTP_400_BAD_REQUEST,
-            content={"error": str(ve)}
-        )
+        data = response.json()
+        logger.info(f"Conversion successful for: {data.get('title', 'Unknown')}")
 
-    except RuntimeError as re:
-        logger.warning(f"Download error: {re}")
-        return JSONResponse(
-            status_code=HTTP_400_BAD_REQUEST,
-            content={"error": str(re)}
-        )
+        return {
+            "success": True,
+            "title": data.get("title"),
+            "download_url": data.get("link"),
+            "duration": data.get("duration"),
+        }
 
     except Exception as e:
         logger.error(f"Server crash: {e}", exc_info=True)
         return JSONResponse(
-            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"error": "Unexpected server error. Please try again later."}
+            status_code=500,
+            content={"error": "Unexpected server error. Please try again later."},
         )
