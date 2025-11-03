@@ -29,43 +29,60 @@ async def download_and_convert(url: str):
     final_mp3_path = os.path.join(TEMP_DIR, f"{video_id}.mp3")
 
     ydl_opts = {
-    "format": "bestaudio",   # match CLI -f bestaudio
-    "outtmpl": output_path,
-    "cookiefile": PATH,
-    "noplaylist": True,
-    "nocheckcertificate": True,
-    "socket_timeout": 30,
-    "cachedir": False,
-    "quiet": False,
+        "format": "bestaudio/best",
+        "outtmpl": output_path,
+        "cookiefile": PATH,
+        "noplaylist": True,
+        "nocheckcertificate": True,
+        "socket_timeout": 30,
+        "cachedir": False,
+        "quiet": True,
+        "prefer_ffmpeg": True,
+        "merge_output_format": "mp3",
 
-    # Equivalent of --extract-audio --audio-format mp3
-    "postprocessors": [
-        {
-            "key": "FFmpegExtractAudio",
-            "preferredcodec": "mp3",
-            "preferredquality": "192",
-        }
-    ],
+        # Post-processing: extract audio and convert to mp3
+        "postprocessors": [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "192",
+            }
+        ],
 
-    # Add this: force yt-dlp to prefer ffmpeg directly if HLS/SABR is forced
-    "prefer_ffmpeg": True,
+        # Handle SABR/HLS or missing direct URLs
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "web", "tv"],  # fallback clients
+                "skip": ["dash", "hls"]  # skip unstable stream types
+            }
+        },
+
+        # Retry on temporary failures
+        "retries": 3,
     }
-
 
     try:
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, lambda: yt_dlp.YoutubeDL(ydl_opts).download([url]))
 
         if not os.path.exists(final_mp3_path):
-            raise RuntimeError("Conversion failed: MP3 file was not created.")
+            # Sometimes yt-dlp outputs .m4a instead; rename it
+            alt_path = os.path.join(TEMP_DIR, f"{video_id}.m4a")
+            if os.path.exists(alt_path):
+                os.rename(alt_path, final_mp3_path)
+            else:
+                raise RuntimeError("Conversion failed: MP3 file was not created.")
 
         return final_mp3_path, os.path.basename(final_mp3_path)
 
     except yt_dlp.utils.DownloadError as de:
-        raise RuntimeError("The video is unavailable, private, geo-blocked, or rate-limited.") from de
+        raise RuntimeError(
+            "The video is unavailable, private, age-restricted, or region-locked."
+        ) from de
 
     except Exception as e:
         raise RuntimeError(f"Unexpected error: {e}")
+
 
 def cleanup_file(path):
     try:
