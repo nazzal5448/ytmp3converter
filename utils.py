@@ -60,9 +60,7 @@ async def download_and_convert(url: str):
                 "preferredcodec": "mp3",
                 "preferredquality": "192",
             },
-            {
-                "key": "EmbedMetadata",  # Optional: preserves title/artist
-            },
+            
         ],
     }
 
